@@ -1,0 +1,34 @@
+name: Bug report
+description: Something is broken
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Frontend / PWA, Auth / 2FA, Movement, Calendar / scheduling, Dashboard / metrics, Data entry, Realtime (WebSocket), Transcription, Deploy / infra]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened vs. what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Log in as a manager\n2. Open Calendar\n3. ..."
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Device / browser / installed PWA?
+      placeholder: "Android Chrome, installed PWA"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Never paste tokens, passwords, TOTP secrets, or employee personal data.

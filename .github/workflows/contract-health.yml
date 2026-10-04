@@ -1,0 +1,100 @@
+# Reusable org-wide health promise. Every backend pipeline calls this, pinned to a tag:
+#
+#   jobs:
+#     health-contract:
+#       uses: capstone-hpsi-2/.github/.github/workflows/contract-health.yml@v1
+#       with:
+#         service: admin-backend
+#         health-path: /api/health
+#
+# Contract: GET <health-path> -> 200, JSON body
+#   { "status": "ok", "service": "<service>", "version": "<non-empty string>" }
+# The service must boot with only the given env (no DB/Redis), so health stays dependency-free.
+name: contract-health
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Expected value of `.service`
+        type: string
+        required: true
+      health-path:
+        description: Health endpoint path as served by the container (e.g. /api/health)
+        type: string
+        required: true
+      port:
+        description: Container port the service listens on
+        type: number
+        default: 8000
+      context:
+        description: Docker build context
+        type: string
+        default: "."
+      docker-target:
+        description: Multi-stage target to build (empty = final stage)
+        type: string
+        default: ""
+      env:
+        description: Extra container env, one KEY=VALUE per line
+        type: string
+        default: ""
+      timeout-seconds:
+        type: number
+        default: 60
+
+permissions:
+  contents: read
+
+jobs:
+  health:
+    name: health contract (${{ inputs.service }})
+    runs-on: ubuntu-latest
+    env:
+      SERVICE: ${{ inputs.service }}
+      HEALTH_PATH: ${{ inputs.health-path }}
+      PORT: ${{ inputs.port }}
+      TARGET: ${{ inputs.docker-target }}
+      CONTEXT: ${{ inputs.context }}
+      EXTRA_ENV: ${{ inputs.env }}
+      TIMEOUT: ${{ inputs.timeout-seconds }}
+    steps:
+      - uses: actions/checkout@v4  # checks out the *calling* repository
+
+      - name: Build image
+        run: |
+          docker build ${TARGET:+--target "$TARGET"} \
+            --build-arg APP_VERSION="ci-${GITHUB_SHA::7}" \
+            -t contract-health:ci "$CONTEXT"
+
+      - name: Start container
+        run: |
+          printf '%s\n' "$EXTRA_ENV" > "$RUNNER_TEMP/health.env"
+          docker run -d --name svc --env-file "$RUNNER_TEMP/health.env" \
+            -p "127.0.0.1:${PORT}:${PORT}" contract-health:ci
+
+      - name: Assert health contract
+        run: |
+          url="http://127.0.0.1:${PORT}${HEALTH_PATH}"
+          deadline=$((SECONDS + TIMEOUT))
+          until code=$(curl -s -o body.json -w '%{http_code}' "$url") && [ "$code" = 200 ]; do
+            if [ $SECONDS -ge $deadline ]; then
+              echo "::error::$url did not return 200 within ${TIMEOUT}s (last: ${code:-no response})"
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Response: $(cat body.json)"
+          jq -e --arg svc "$SERVICE" '
+            .status == "ok"
+            and .service == $svc
+            and (.version | type == "string" and length > 0)
+          ' body.json > /dev/null || {
+            echo "::error::Health body violates the contract: expected {status:\"ok\", service:\"$SERVICE\", version:<non-empty>}"
+            exit 1
+          }
+          echo "Health contract satisfied for $SERVICE"
+
+      - name: Container logs
+        if: failure()
+        run: docker logs svc || true

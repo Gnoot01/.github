@@ -1,0 +1,37 @@
+name: Cross-repo contract change
+description: Propose a change to an API, WebSocket, auth, env, health, or GPU-queue contract
+labels: [contract]
+body:
+  - type: dropdown
+    id: contract
+    attributes:
+      label: Contract
+      options:
+        - REST API (OpenAPI)
+        - Realtime (AsyncAPI / channels)
+        - JWT claims / JWKS
+        - Health shape
+        - Env names (.env.example)
+        - GPU job envelope
+        - nginx routing (/api, /ai, /ws)
+    validations:
+      required: true
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Breaking?
+      options: ["No: additive only", "Yes: consumers must change"]
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed change
+      description: Paste the schema/spec diff if you have one.
+    validations:
+      required: true
+  - type: textarea
+    id: rollout
+    attributes:
+      label: Rollout plan
+      description: "For breaking changes: order of PRs across repos, and how the smoke test stays green in between."

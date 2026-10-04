@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose new behaviour
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who needs this, and why?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+  - type: checkboxes
+    id: repos
+    attributes:
+      label: Repos likely touched
+      options:
+        - label: frontend
+        - label: admin-backend
+        - label: transcription-backend
+  - type: dropdown
+    id: roles
+    attributes:
+      label: Which roles should have access?
+      multiple: true
+      options: [admin, manager, employee, read_only]
